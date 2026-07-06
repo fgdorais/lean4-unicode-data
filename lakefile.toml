@@ -1,0 +1,14 @@
+name = "UnicodeData"
+precompileModules = true
+testDriver = "testTables"
+description = "Unicode Character Database support for Lean 4"
+keywords = ["unicode"]
+defaultTargets = ["UnicodeData"]
+
+[[require]]
+name = "UnicodeBasic"
+git = "https://github.com/fgdorais/lean4-unicode-basic"
+rev = "main"
+
+[[lean_lib]]
+name = "UnicodeData"

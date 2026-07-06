@@ -1,0 +1,13 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "nightly-testing" ]
+
+concurrency:
+  group: cd-${{ github.head_ref }}
+  cancel-in-progress: false
+
+jobs:
+  run-cd:
+    uses: ./.github/workflows/build.yml

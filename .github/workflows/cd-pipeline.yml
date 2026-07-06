@@ -11,3 +11,24 @@ concurrency:
 jobs:
   run-cd:
     uses: ./.github/workflows/build.yml
+
+  merge-into-nightly-testing:
+    if: github.ref == 'refs/heads/main'
+    needs: run-cd
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout nightly-testing
+        uses: actions/checkout@v7
+        with:
+          ref: nightly-testing
+          fetch-depth: 0
+          token: ${{ secrets.UNICODE_BASIC_TOKEN }}
+
+      - name: Merge main into nightly-testing
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
+          git merge origin/main --no-commit --strategy-option ours --allow-unrelated-histories
+          git restore --staged lean-toolchain lake-manifest.json
+          git commit --allow-empty -m "chore: merge main into nightly-testing"
+          git push origin nightly-testing

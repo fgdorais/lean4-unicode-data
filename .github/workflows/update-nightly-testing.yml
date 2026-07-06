@@ -1,0 +1,88 @@
+name: Update Nightly Testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      unicode_basic_rev:
+        description: Commit dispatched by lean4-unicode-basic
+        required: true
+        type: string
+      toolchain_rev:
+        description: Lean toolchain revision used by lean4-unicode-basic
+        required: true
+        type: string
+
+concurrency:
+  group: update-nightly-testing
+  cancel-in-progress: false
+
+jobs:
+  update-nightly-testing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout nightly-testing
+        uses: actions/checkout@v7
+        with:
+          ref: nightly-testing
+          token: ${{ secrets.UNICODE_BASIC_TOKEN }}
+
+      - name: Check and update toolchain
+        id: toolchain
+        env:
+          TOOLCHAIN_REV: ${{ inputs.toolchain_rev }}
+        run: |
+          REQUESTED_TOOLCHAIN="leanprover/lean4:${TOOLCHAIN_REV}"
+          CURRENT_TOOLCHAIN=$(tr -d '\n' < lean-toolchain)
+
+          if [ "$CURRENT_TOOLCHAIN" = "$REQUESTED_TOOLCHAIN" ]; then
+            echo "updated=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          BATTERIES_TOOLCHAIN=$(curl --fail --silent --show-error --location \
+            https://raw.githubusercontent.com/leanprover-community/batteries/nightly-testing/lean-toolchain | tr -d '\n')
+
+          if [ "$BATTERIES_TOOLCHAIN" != "$REQUESTED_TOOLCHAIN" ]; then
+            echo "updated=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "$REQUESTED_TOOLCHAIN" > lean-toolchain
+          echo "updated=true" >> "$GITHUB_OUTPUT"
+
+      - name: Install Lean
+        if: steps.toolchain.outputs.updated == 'true'
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          use-github-cache: false
+
+      - name: Update UnicodeBasic
+        if: steps.toolchain.outputs.updated == 'true'
+        run: lake update --keep-toolchain
+
+      - name: Verify UnicodeBasic revision
+        if: steps.toolchain.outputs.updated == 'true'
+        env:
+          UNICODE_BASIC_REV: ${{ inputs.unicode_basic_rev }}
+        run: |
+          RESOLVED_REV=$(jq --raw-output \
+            '.packages[] | select(.name == "UnicodeBasic") | .rev' lake-manifest.json)
+          if [ "$RESOLVED_REV" != "$UNICODE_BASIC_REV" ]; then
+            echo "::error::Expected UnicodeBasic revision ${UNICODE_BASIC_REV}, resolved ${RESOLVED_REV}"
+            exit 1
+          fi
+
+      - name: Commit update
+        if: steps.toolchain.outputs.updated == 'true'
+        env:
+          UNICODE_BASIC_REV: ${{ inputs.unicode_basic_rev }}
+        run: |
+          if git diff --quiet -- lean-toolchain lake-manifest.json; then
+            exit 0
+          fi
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
+          git add lean-toolchain lake-manifest.json
+          git commit -m "chore: update UnicodeBasic to ${UNICODE_BASIC_REV}"
+          git push origin nightly-testing

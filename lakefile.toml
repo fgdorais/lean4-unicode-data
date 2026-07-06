@@ -6,6 +6,11 @@ keywords = ["unicode"]
 defaultTargets = ["UnicodeData"]
 
 [[require]]
+name = "Batteries"
+git = "https://github.com/leanprover-community/batteries"
+rev = "main"
+
+[[require]]
 name = "UnicodeBasic"
 git = "https://github.com/fgdorais/lean4-unicode-basic"
 rev = "main"

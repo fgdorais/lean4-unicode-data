@@ -1,0 +1,86 @@
+name: Update UCD
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '37 4 * * *'
+
+jobs:
+  update-ucd:
+    name: Update UCD
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          use-github-cache: false
+
+      - name: Get Latest UCD ReadMe
+        run: |
+          set -euo pipefail
+
+          curl -fsSL https://www.unicode.org/Public/latest/ucd/ReadMe.txt -o data/ucd/ReadMe.txt
+
+      - name: Extract Unicode Version
+        id: unicode-version
+        run: |
+          set -euo pipefail
+
+          VERSION=$(grep -Eo 'Version [0-9]+\.[0-9]+\.[0-9]+' data/ucd/ReadMe.txt \
+            | cut -d' ' -f2 \
+            | tr -d '\n')
+          if [ -z "$VERSION" ]; then
+            echo "Could not extract Unicode version from data/ucd/ReadMe.txt" >&2
+            exit 1
+          fi
+          echo "v$VERSION" > data/unicode-version
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          if git diff --quiet -- data/unicode-version; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download UCD
+        if: ${{ steps.unicode-version.outputs.changed == 'true' }}
+        run: |
+          set -euo pipefail
+
+          TMP_DIR=$(mktemp -d)
+          UCD_BASE_URL="https://www.unicode.org/Public/latest/ucd"
+
+          curl -fsSL "${UCD_BASE_URL}/UCD.zip" -o "${TMP_DIR}/UCD.zip"
+          curl -fsSL "${UCD_BASE_URL}/Unihan.zip" -o data/Unihan.zip
+
+          rm -rf data/ucd
+          mkdir -p data/ucd
+          unzip -q "${TMP_DIR}/UCD.zip" -d data/ucd
+          unzip -q data/Unihan.zip -d data/ucd
+
+      # - name: Regenerate Tables
+      #   if: ${{ steps.unicode-version.outputs.changed == 'true' }}
+      #   run: |
+      #     lake build --keep-toolchain --wfail UnicodeData makeTables makeCLib
+
+      - name: Create Pull Request
+        if: ${{ steps.unicode-version.outputs.changed == 'true' }}
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.UNICODE_BASIC_TOKEN }}
+          commit-message: "chore: update ucd ${{ steps.unicode-version.outputs.version }}"
+          branch: update-ucd-${{ steps.unicode-version.outputs.version }}
+          base: main
+          delete-branch: true
+          title: "chore: update ucd ${{ steps.unicode-version.outputs.version }}"
+          body: |
+            Updates Unicode Character Database files to ${{ steps.unicode-version.outputs.version }}.
+
+            Source: https://www.unicode.org/Public/latest/ucd/

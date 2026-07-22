@@ -1,0 +1,19 @@
+module
+public import UnicodeData.Tables.BidiClass
+public import UnicodeData.Tables.BidiMirrored
+public import UnicodeData.Tables.CanonicalCombiningClass
+public import UnicodeData.Tables.CanonicalDecompositionMapping
+public import UnicodeData.Tables.CaseMapping
+public import UnicodeData.Tables.DecompositionMapping
+public import UnicodeData.Tables.GeneralCategory
+public import UnicodeData.Tables.Name
+public import UnicodeData.Tables.NoncharacterCodePoint
+public import UnicodeData.Tables.NumericValue
+public import UnicodeData.Tables.OtherAlphabetic
+public import UnicodeData.Tables.OtherDefaultIgnorableCodePoint
+public import UnicodeData.Tables.OtherLowercase
+public import UnicodeData.Tables.OtherMath
+public import UnicodeData.Tables.OtherUppercase
+public import UnicodeData.Tables.PrependedConcatenationMark
+public import UnicodeData.Tables.Utils
+public import UnicodeData.Tables.VariationSelector

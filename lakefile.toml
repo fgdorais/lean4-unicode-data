@@ -6,6 +6,11 @@ keywords = ["unicode"]
 defaultTargets = ["UnicodeData"]
 
 [[require]]
+name = "Batteries"
+git = "https://github.com/leanprover-community/batteries"
+rev = "main"
+
+[[require]]
 name = "UnicodeBasic"
 git = "https://github.com/fgdorais/lean4-unicode-basic"
 rev = "data-split"
@@ -14,7 +19,8 @@ rev = "data-split"
 name = "UnicodeData"
 
 [[lean_exe]]
-name = "makeTables"
+name = "MakeTables"
+exeName = "make-tables"
 
 [[lean_exe]]
 name = "makeCLib"

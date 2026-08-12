@@ -17,7 +17,14 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: main
+          fetch-depth: 0
           token: ${{ secrets.UNICODE_DATA_TOKEN }}
+
+      - name: Merge nightly-testing
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
+          git merge --no-edit origin/nightly-testing
 
       - name: Gather revisions and update toolchain
         id: toolchain
@@ -31,7 +38,7 @@ jobs:
             echo "::error::Unexpected UnicodeBasic toolchain: ${REQUESTED_TOOLCHAIN}"
             exit 1
           fi
-          CURRENT_TOOLCHAIN=$(tr -d '\n' < lean-toolchain)
+          CURRENT_TOOLCHAIN=$(git show origin/main:lean-toolchain | tr -d '\n')
 
           if [ "$CURRENT_TOOLCHAIN" = "$REQUESTED_TOOLCHAIN" ]; then
             echo "updated=false" >> "$GITHUB_OUTPUT"
@@ -69,9 +76,6 @@ jobs:
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.UNICODE_DATA_TOKEN }}
-          add-paths: |
-            lean-toolchain
-            lake-manifest.json
           commit-message: "chore: update toolchain to ${{ steps.toolchain.outputs.toolchain_rev }}"
           branch: update-main-toolchain-${{ steps.toolchain.outputs.toolchain_rev }}
           base: main

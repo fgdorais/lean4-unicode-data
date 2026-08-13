@@ -35,6 +35,33 @@ public initialize Scripts.data : Scripts ← do
       t := t.insert record[1]! #[(c₀, c₁)]
   return t
 
+/-- Script ranges indexed by code point. -/
+initialize Scripts.codeData : Array (UInt32 × UInt32 × String.Slice) ← do
+  let mut data := #[]
+  for (script, ranges) in Scripts.data do
+    for (c₀, c₁) in ranges do
+      data := data.push (c₀, c₁, script)
+  return data.qsort fun a b => a.1 < b.1
+
+/-- Find the last script range whose lower bound is at most `code`. -/
+private partial def Scripts.find (code : UInt32) (lo hi : Nat) : Nat :=
+  assert! (hi ≤ codeData.size)
+  assert! (lo < hi)
+  assert! (codeData[lo]!.1 ≤ code)
+  let mid := (lo + hi) / 2
+  if lo = mid then
+    mid
+  else if code < codeData[mid]!.1 then
+    find code lo mid
+  else
+    find code mid hi
+
+/-- Get the Script property value for a code point. -/
+public def Scripts.getScript? (code : UInt32) : Option String.Slice :=
+  if codeData.isEmpty || code < codeData[0]!.1 then none else
+    match codeData[find code 0 codeData.size]! with
+    | (_, top, script) => if code ≤ top then some script else none
+
 /-- Get table for given script -/
 @[inline]
 public def Scripts.getTable? (sc : String.Slice) : Option <| Array (UInt32 × UInt32) := do

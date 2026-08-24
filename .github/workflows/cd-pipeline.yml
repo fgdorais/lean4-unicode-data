@@ -22,7 +22,7 @@ jobs:
         with:
           ref: nightly-testing
           fetch-depth: 0
-          token: ${{ secrets.UNICODE_BASIC_TOKEN }}
+          token: ${{ secrets.UNICODE_DATA_TOKEN }}
 
       - name: Merge main into nightly-testing
         run: |

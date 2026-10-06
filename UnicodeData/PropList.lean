@@ -3,6 +3,7 @@ Copyright © 2023-2025 François G. Dorais. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
+import Batteries.Data.Nat.Bisect
 import UnicodeBasic.Types
 import UnicodeBasic.CharacterDatabase
 
@@ -66,27 +67,20 @@ public unsafe initialize PropList.data : PropList ←
       list := {list with deprecated := list.deprecated.push val}
   return list
 
--- TODO: stop reinventing the wheel!
-/-- Binary search -/
-private partial def find (code : UInt32) (data : Array (UInt32 × Option UInt32)) (lo hi : Nat) : Nat :=
-  assert! (hi ≤ data.size)
-  assert! (lo < hi)
-  assert! (data[lo]!.fst ≤ code)
-  let mid := (lo + hi) / 2 -- NB: mid < hi because lo < hi
-  if lo = mid then
-    mid
+/-- Binary search for the last entry with start at most `code` -/
+private def find (code : UInt32) (data : Array (UInt32 × Option UInt32)) : Nat :=
+  let p i := decide (i < data.size) && data[i]!.fst ≤ code
+  if h : 0 < data.size ∧ data[0]!.fst ≤ code then
+    Nat.bisect (p := p) h.1 (by simp only [p, h.1, h.2, decide_true, Bool.and_self]) (by simp [p])
   else
-    if code < data[mid]!.fst then
-      find code data lo mid
-    else
-      find code data mid hi
+    panic! "invalid binary search start"
 
 /-- Check if code point has `Noncharacter_Code_Point` property from `PropList.txt` -/
 @[inline]
 public def PropList.isNoncharacterCodePoint (code : UInt32) : Bool :=
   let data := PropList.data.noncharacterCodePoint
   if data.size == 0 || code < data[0]!.fst then false else
-    match data[find code data 0 data.size]! with
+    match data[find code data]! with
     | (val, none) => code == val
     | (_, some top) => code <= top
 
@@ -95,7 +89,7 @@ public def PropList.isNoncharacterCodePoint (code : UInt32) : Bool :=
 public def PropList.isWhiteSpace (code : UInt32) : Bool :=
   let data := PropList.data.whiteSpace
   if data.size == 0 || code < data[0]!.fst then false else
-    match data[find code data 0 data.size]! with
+    match data[find code data]! with
     | (val, none) => code == val
     | (_, some top) => code <= top
 
@@ -104,7 +98,7 @@ public def PropList.isWhiteSpace (code : UInt32) : Bool :=
 public def PropList.isOtherMath (code : UInt32) : Bool :=
   let data := PropList.data.otherMath
   if data.size == 0 || code < data[0]!.fst then false else
-    match data[find code data 0 data.size]! with
+    match data[find code data]! with
     | (val, none) => code == val
     | (_, some top) => code <= top
 
@@ -113,7 +107,7 @@ public def PropList.isOtherMath (code : UInt32) : Bool :=
 public def PropList.isOtherAlphabetic (code : UInt32) : Bool :=
   let data := PropList.data.otherAlphabetic
   if data.size == 0 || code < data[0]!.fst then false else
-    match data[find code data 0 data.size]! with
+    match data[find code data]! with
     | (val, none) => code == val
     | (_, some top) => code <= top
 
@@ -122,7 +116,7 @@ public def PropList.isOtherAlphabetic (code : UInt32) : Bool :=
 public def PropList.isOtherLowercase (code : UInt32) : Bool :=
   let data := PropList.data.otherLowercase
   if data.size == 0 || code < data[0]!.fst then false else
-    match data[find code data 0 data.size]! with
+    match data[find code data]! with
     | (val, none) => code == val
     | (_, some top) => code <= top
 
@@ -131,7 +125,7 @@ public def PropList.isOtherLowercase (code : UInt32) : Bool :=
 public def PropList.isOtherUppercase (code : UInt32) : Bool :=
   let data := PropList.data.otherUppercase
   if data.size == 0 || code < data[0]!.fst then false else
-    match data[find code data 0 data.size]! with
+    match data[find code data]! with
     | (val, none) => code == val
     | (_, some top) => code <= top
 
@@ -140,7 +134,7 @@ public def PropList.isOtherUppercase (code : UInt32) : Bool :=
 public def PropList.isOtherDefaultIgnorableCodePoint (code : UInt32) : Bool :=
   let data := PropList.data.otherDefaultIgnorableCodePoint
   if data.size == 0 || code < data[0]!.fst then false else
-    match data[find code data 0 data.size]! with
+    match data[find code data]! with
     | (val, none) => code == val
     | (_, some top) => code <= top
 
@@ -149,7 +143,7 @@ public def PropList.isOtherDefaultIgnorableCodePoint (code : UInt32) : Bool :=
 public def PropList.isPrependedConcatenationMark (code : UInt32) : Bool :=
   let data := PropList.data.prependedConcatenationMark
   if data.size == 0 || code < data[0]!.fst then false else
-    match data[find code data 0 data.size]! with
+    match data[find code data]! with
     | (val, none) => code == val
     | (_, some top) => code <= top
 
@@ -158,7 +152,7 @@ public def PropList.isPrependedConcatenationMark (code : UInt32) : Bool :=
 public def PropList.isVariationSelector (code : UInt32) : Bool :=
   let data := PropList.data.variationSelector
   if data.size == 0 || code < data[0]!.fst then false else
-    match data[find code data 0 data.size]! with
+    match data[find code data]! with
     | (val, none) => code == val
     | (_, some top) => code <= top
 
@@ -167,6 +161,6 @@ public def PropList.isVariationSelector (code : UInt32) : Bool :=
 public def PropList.isDeprecated (code : UInt32) : Bool :=
   let data := PropList.data.deprecated
   if data.size == 0 || code < data[0]!.fst then false else
-    match data[find code data 0 data.size]! with
+    match data[find code data]! with
     | (val, none) => code == val
     | (_, some top) => code <= top

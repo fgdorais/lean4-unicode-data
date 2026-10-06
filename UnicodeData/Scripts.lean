@@ -10,12 +10,15 @@ import UnicodeBasic.CharacterDatabase
 
 namespace Unicode
 
-/-- Type for scripts data -/
+/-- Type for `Script` property data: long script names mapped to code point ranges.
+
+Uses only the `Script` property (`Scripts.txt`), not `Script_Extensions`. -/
 public abbrev Scripts := Std.HashMap String.Slice (Array (UInt32 × UInt32))
 
-/-- Raw string from `Scripts.txt` -/
+/-- Raw string from `Scripts.txt` (`Script` property only) -/
 def Scripts.txt := include_str "../data/ucd/Scripts.txt"
 
+/-- Code point ranges for each script, using only the `Script` property. -/
 public initialize Scripts.data : Scripts ← do
   let stream := UCDStream.ofString Scripts.txt
   let mut t := {}
@@ -36,7 +39,7 @@ public initialize Scripts.data : Scripts ← do
       t := t.insert record[1]! #[(c₀, c₁)]
   return t
 
-/-- Script ranges indexed by code point. -/
+/-- `Script` property ranges indexed by code point. -/
 initialize Scripts.codeData : Array (UInt32 × UInt32 × String.Slice) ← do
   let mut data := #[]
   for (script, ranges) in Scripts.data do
@@ -52,13 +55,17 @@ private def Scripts.find (code : UInt32) : Nat :=
   else
     panic! "invalid binary search start"
 
-/-- Get the Script property value for a code point. -/
+/-- Get the long `Script` property value for a code point.
+
+Uses only the `Script` property; see `ScriptExtensions.get` for `Script_Extensions`. -/
 public def Scripts.getScript? (code : UInt32) : Option String.Slice :=
   if codeData.isEmpty || code < codeData[0]!.1 then none else
     match codeData[find code]! with
     | (_, top, script) => if code ≤ top then some script else none
 
-/-- Get table for given script -/
+/-- Get the code point ranges whose `Script` property is the given script.
+
+Uses only the `Script` property; see `ScriptExtensions.getTable` for `Script_Extensions`. -/
 @[inline]
 public def Scripts.getTable? (sc : String.Slice) : Option <| Array (UInt32 × UInt32) := do
   let sc ← PropertyValueAliases.getLongName! "Script" sc

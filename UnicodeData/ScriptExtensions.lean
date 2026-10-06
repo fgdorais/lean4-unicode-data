@@ -10,16 +10,18 @@ import UnicodeBasic.CharacterDatabase
 
 namespace Unicode
 
-/-- A code point range and its explicit short Script Extensions values. -/
+/-- A code point range and its short `Script_Extensions` values as listed in
+`ScriptExtensions.txt`. -/
 public abbrev ScriptExtension := UInt32 × UInt32 × Array String.Slice
 
-/-- Script Extensions values indexed by both script and code point.
+/-- `Script_Extensions` values indexed by both script and code point.
 
 * `byScript` maps each short script name to the sorted ranges of all code points whose
-  Script Extensions value contains that script, including code points that inherit
-  their value from the `Script` property. Each table is computed on first use.
-* `byCode` lists the code point ranges explicitly given in `ScriptExtensions.txt`,
-  sorted by code point.
+  `Script_Extensions` value contains that script. This uses both `ScriptExtensions.txt`
+  and, for code points not listed there, the `Script` property. Each table is computed
+  on first use.
+* `byCode` lists only the code point ranges explicitly given in `ScriptExtensions.txt`,
+  sorted by code point. It does not use the `Script` property.
 -/
 public structure ScriptExtensions where
   byScript : Std.HashMap String.Slice (Thunk (Array (UInt32 × UInt32)))
@@ -28,8 +30,8 @@ deriving Inhabited
 
 /-- Raw string form of `ScriptExtensions.txt`.
 
-Code points not listed in this file have the value of their corresponding
-`Script` property.
+Code points not listed in this file have a `Script_Extensions` value consisting of
+just their `Script` property value.
 -/
 protected def ScriptExtensions.txt := include_str "../data/ucd/ScriptExtensions.txt"
 
@@ -65,7 +67,8 @@ private def ScriptExtensions.subtract (ranges : Array (UInt32 × UInt32))
     unless done do out := out.push (lo, c₁)
   return out
 
-/-- Script Extensions values indexed by both script and code point. -/
+/-- `Script_Extensions` values indexed by both script and code point, using both
+`ScriptExtensions.txt` and the `Script` property. -/
 public initialize ScriptExtensions.data : ScriptExtensions ← do
   let stream := UCDStream.ofString ScriptExtensions.txt
   let mut byCode : Array ScriptExtension := #[]
@@ -102,8 +105,11 @@ public initialize ScriptExtensions.data : ScriptExtensions ← do
       ScriptExtensions.subtract #[(0, 0x10FFFF)] (ScriptExtensions.normalize assigned) ++ extra
   return ⟨byScript, byCode⟩
 
-/-- Get the ranges of all code points whose Script Extensions value contains the given
-script. The script may be given by its short or long name. -/
+/-- Get the ranges of all code points whose `Script_Extensions` value contains the given
+script. The script may be given by its short or long name.
+
+Uses both `ScriptExtensions.txt` and the `Script` property; see `Scripts.getTable?` for
+the `Script` property alone. -/
 @[inline]
 public def ScriptExtensions.getTable (sc : String.Slice) : Array (UInt32 × UInt32) :=
   match PropertyValueAliases.getShortName? "Script" sc with
@@ -118,7 +124,11 @@ private def ScriptExtensions.find (code : UInt32) : Nat :=
   else
     panic! "invalid binary search start"
 
-/-- Get the explicit short Script Extensions values for a code point. -/
+/-- Get the short `Script_Extensions` values listed for a code point in
+`ScriptExtensions.txt`, or `none` if it is not listed.
+
+Uses only `ScriptExtensions.txt`, not the `Script` property; see `ScriptExtensions.get`
+for the complete value. -/
 public def ScriptExtensions.getExplicit? (code : UInt32) : Option (Array String.Slice) :=
   if data.byCode.isEmpty || code < data.byCode[0]!.1 then none else
     match data.byCode[find code]! with
@@ -132,15 +142,21 @@ private def ScriptExtensions.findRange (code : UInt32) (ranges : Array (UInt32 �
   else
     panic! "invalid binary search start"
 
-/-- Check whether the Script Extensions value of a code point contains the given script.
-The script may be given by its short or long name. -/
+/-- Check whether the `Script_Extensions` value of a code point contains the given script.
+The script may be given by its short or long name.
+
+Uses both `ScriptExtensions.txt` and the `Script` property. -/
 public def ScriptExtensions.contains (sc : String.Slice) (code : UInt32) : Bool :=
   let ranges := getTable sc
   if ranges.isEmpty || code < ranges[0]!.1 then false else
     let (_, top) := ranges[findRange code ranges]!
     code ≤ top
 
-/-- Get the short Script Extensions values for a code point. -/
+/-- Get the short `Script_Extensions` values for a code point.
+
+Uses `ScriptExtensions.txt` when the code point is listed there, and otherwise its `Script`
+property value (`Zzzz` if unassigned); see `Scripts.getScript?` for the `Script` property
+alone. -/
 public def ScriptExtensions.get (code : UInt32) : Array String.Slice :=
   match getExplicit? code with
   | some scripts => scripts

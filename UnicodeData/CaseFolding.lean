@@ -55,7 +55,7 @@ public def getSimple? (code : UInt32) : Option UInt32 :=
     | (c, s, _) => if code == c then s else none
 
 /-- Get full case folding -/
-public def CaseFolding.getFull (code : UInt32) : Array UInt32 :=
+public def getFull (code : UInt32) : Array UInt32 :=
   if code < data[0]!.1 then #[] else
     match data[find code 0 data.size]! with
     | (c, s, f) =>

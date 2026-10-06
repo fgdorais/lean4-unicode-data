@@ -3,6 +3,7 @@ Copyright © 2026 François G. Dorais. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
+import Batteries.Data.Nat.Bisect
 import UnicodeBasic.Types
 import UnicodeBasic.CharacterDatabase
 
@@ -34,30 +35,24 @@ public initialize data : Array (UInt32 × Option UInt32 × Array UInt32) ← do
     else continue
   return a
 
-/-- Binary search -/
-def find (code : UInt32) (lo hi : Nat) : Nat :=
-    assert! (hi ≤ data.size)
-    assert! (lo < hi)
-    assert! (data[lo]!.1 ≤ code)
-    let mid := (lo + hi) / 2 -- NB: mid < hi because lo < hi
-    if lo = mid then
-      mid
-    else
-      if code < data[mid]!.1 then
-        find code lo mid
-      else
-        find code mid hi
+/-- Binary search for the last entry with code at most `code` -/
+def find (code : UInt32) : Nat :=
+  let p i := decide (i < data.size) && data[i]!.1 ≤ code
+  if h : 0 < data.size ∧ data[0]!.1 ≤ code then
+    Nat.bisect (p := p) h.1 (by simp only [p, h.1, h.2, decide_true, Bool.and_self]) (by simp [p])
+  else
+    panic! "invalid binary search start"
 
 /-- Get simple case folding -/
 public def getSimple? (code : UInt32) : Option UInt32 :=
   if code < data[0]!.1 then none else
-    match data[find code 0 data.size]! with
+    match data[find code]! with
     | (c, s, _) => if code == c then s else none
 
 /-- Get full case folding -/
 public def getFull (code : UInt32) : Array UInt32 :=
   if code < data[0]!.1 then #[] else
-    match data[find code 0 data.size]! with
+    match data[find code]! with
     | (c, s, f) =>
       if code == c then
         if f.isEmpty then #[s.getD c] else f

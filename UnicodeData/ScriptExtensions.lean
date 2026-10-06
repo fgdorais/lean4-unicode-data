@@ -12,7 +12,14 @@ namespace Unicode
 /-- A code point range and its explicit short Script Extensions values. -/
 public abbrev ScriptExtension := UInt32 × UInt32 × Array String.Slice
 
-/-- Explicit short Script Extensions values indexed by both script and code point. -/
+/-- Script Extensions values indexed by both script and code point.
+
+* `byScript` maps each short script name to the sorted ranges of all code points whose
+  Script Extensions value contains that script, including code points that inherit
+  their value from the `Script` property.
+* `byCode` lists the code point ranges explicitly given in `ScriptExtensions.txt`,
+  sorted by code point.
+-/
 public structure ScriptExtensions where
   byScript : Std.HashMap String.Slice (Array (UInt32 × UInt32))
   byCode : Array ScriptExtension
@@ -25,10 +32,43 @@ Code points not listed in this file have the value of their corresponding
 -/
 protected def ScriptExtensions.txt := include_str "../data/ucd/ScriptExtensions.txt"
 
-/-- Explicit short Script Extensions values indexed by both script and code point. -/
+/-- Sort ranges and merge those that overlap or are adjacent. -/
+private def ScriptExtensions.normalize (ranges : Array (UInt32 × UInt32)) :
+    Array (UInt32 × UInt32) := Id.run do
+  let mut out := #[]
+  for (c₀, c₁) in ranges.qsort fun a b => a.1 < b.1 do
+    match out.back? with
+    | some (d₀, d₁) =>
+      if c₀ ≤ d₁ + 1 then
+        out := out.pop.push (d₀, max c₁ d₁)
+      else
+        out := out.push (c₀, c₁)
+    | none => out := out.push (c₀, c₁)
+  return out
+
+/-- Remove from `ranges` all code points in the sorted disjoint ranges `holes`. -/
+private def ScriptExtensions.subtract (ranges : Array (UInt32 × UInt32))
+    (holes : Array (UInt32 × UInt32)) : Array (UInt32 × UInt32) := Id.run do
+  let mut out := #[]
+  for (c₀, c₁) in ranges do
+    let mut lo := c₀
+    let mut done := false
+    for (h₀, h₁) in holes do
+      if h₁ < lo then continue
+      if c₁ < h₀ then break
+      if lo < h₀ then out := out.push (lo, h₀ - 1)
+      if c₁ ≤ h₁ then
+        done := true
+        break
+      lo := h₁ + 1
+    unless done do out := out.push (lo, c₁)
+  return out
+
+/-- Script Extensions values indexed by both script and code point. -/
 public initialize ScriptExtensions.data : ScriptExtensions ← do
   let stream := UCDStream.ofString ScriptExtensions.txt
-  let mut data : ScriptExtensions := ⟨{}, #[]⟩
+  let mut byCode : Array ScriptExtension := #[]
+  let mut explicit : Std.HashMap String.Slice (Array (UInt32 × UInt32)) := {}
   for record in stream do
     let (c₀, c₁) : UInt32 × UInt32 :=
       match record[0]!.split ".." |>.toList with
@@ -36,18 +76,29 @@ public initialize ScriptExtensions.data : ScriptExtensions ← do
       | [c₀, c₁] => (ofHexString! c₀, ofHexString! c₁)
       | _ => panic! "invalid record in ScriptExtensions.txt"
     let shortNames := record[1]!.split " " |>.toArray
-    data := {data with byCode := data.byCode.push (c₀, c₁, shortNames)}
+    byCode := byCode.push (c₀, c₁, shortNames)
     for script in shortNames do
-      let ranges := data.byScript.get? script |>.getD #[]
-      let ranges :=
-        if let some (d₀, d₁) := ranges.back? then
-          if c₀ = d₁ + 1 then ranges.pop.push (d₀, c₁) else ranges.push (c₀, c₁)
-        else
-          #[(c₀, c₁)]
-      data := {data with byScript := data.byScript.insert script ranges}
-  return data
+      explicit := explicit.insert script <| (explicit.getD script #[]).push (c₀, c₁)
+  byCode := byCode.qsort fun a b => a.1 < b.1
+  let listed := ScriptExtensions.normalize <| byCode.map fun (c₀, c₁, _) => (c₀, c₁)
+  -- Code points with an explicit value keep only that value; all others inherit
+  -- their `Script` value.
+  let mut byScript : Std.HashMap String.Slice (Array (UInt32 × UInt32)) := {}
+  let mut assigned := #[]
+  for (script, ranges) in Scripts.data do
+    let sc := PropertyValueAliases.getShortName! "Script" script
+    byScript := byScript.insert sc (ScriptExtensions.subtract (ScriptExtensions.normalize ranges) listed)
+    assigned := assigned ++ ranges
+  -- Code points without a `Script` value have the value `Unknown`.
+  let unknown := ScriptExtensions.subtract #[(0, 0x10FFFF)] (ScriptExtensions.normalize (assigned ++ listed))
+  byScript := byScript.insert "Zzzz" <| unknown ++ byScript.getD "Zzzz" #[]
+  for (sc, ranges) in explicit do
+    byScript := byScript.insert sc (byScript.getD sc #[] ++ ranges)
+  byScript := byScript.map fun _ ranges => ScriptExtensions.normalize ranges
+  return ⟨byScript, byCode⟩
 
-/-- Get the explicit script extension ranges for a script name. -/
+/-- Get the ranges of all code points whose Script Extensions value contains the given
+script. The script may be given by its short or long name. -/
 @[inline]
 public def ScriptExtensions.getTable (sc : String.Slice) : Array (UInt32 × UInt32) :=
   match PropertyValueAliases.getShortName? "Script" sc with
@@ -88,9 +139,9 @@ private partial def ScriptExtensions.findRange
   else
     findRange code ranges mid hi
 
-/-- Check whether a code point explicitly lists a script in
-`ScriptExtensions.txt`. -/
-public def ScriptExtensions.containsExplicit (sc : String.Slice) (code : UInt32) : Bool :=
+/-- Check whether the Script Extensions value of a code point contains the given script.
+The script may be given by its short or long name. -/
+public def ScriptExtensions.contains (sc : String.Slice) (code : UInt32) : Bool :=
   let ranges := getTable sc
   if ranges.isEmpty || code < ranges[0]!.1 then false else
     let (_, top) := ranges[findRange code ranges 0 ranges.size]!

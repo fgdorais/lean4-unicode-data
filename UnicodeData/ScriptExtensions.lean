@@ -17,12 +17,12 @@ public abbrev ScriptExtension := UInt32 × UInt32 × Array String.Slice
 
 * `byScript` maps each short script name to the sorted ranges of all code points whose
   Script Extensions value contains that script, including code points that inherit
-  their value from the `Script` property.
+  their value from the `Script` property. Each table is computed on first use.
 * `byCode` lists the code point ranges explicitly given in `ScriptExtensions.txt`,
   sorted by code point.
 -/
 public structure ScriptExtensions where
-  byScript : Std.HashMap String.Slice (Array (UInt32 × UInt32))
+  byScript : Std.HashMap String.Slice (Thunk (Array (UInt32 × UInt32)))
   byCode : Array ScriptExtension
 deriving Inhabited
 
@@ -84,18 +84,22 @@ public initialize ScriptExtensions.data : ScriptExtensions ← do
   let listed := ScriptExtensions.normalize <| byCode.map fun (c₀, c₁, _) => (c₀, c₁)
   -- Code points with an explicit value keep only that value; all others inherit
   -- their `Script` value.
-  let mut byScript : Std.HashMap String.Slice (Array (UInt32 × UInt32)) := {}
-  let mut assigned := #[]
+  let mut byScript : Std.HashMap String.Slice (Thunk (Array (UInt32 × UInt32))) := {}
   for (script, ranges) in Scripts.data do
     let sc := PropertyValueAliases.getShortName! "Script" script
-    byScript := byScript.insert sc (ScriptExtensions.subtract (ScriptExtensions.normalize ranges) listed)
-    assigned := assigned ++ ranges
+    let extra := explicit.getD sc #[]
+    byScript := byScript.insert sc <| .mk fun _ =>
+      ScriptExtensions.normalize <|
+        ScriptExtensions.subtract (ScriptExtensions.normalize ranges) listed ++ extra
+  for (sc, extra) in explicit do
+    unless byScript.contains sc do
+      byScript := byScript.insert sc <| .mk fun _ => ScriptExtensions.normalize extra
   -- Code points without a `Script` value have the value `Unknown`.
-  let unknown := ScriptExtensions.subtract #[(0, 0x10FFFF)] (ScriptExtensions.normalize (assigned ++ listed))
-  byScript := byScript.insert "Zzzz" <| unknown ++ byScript.getD "Zzzz" #[]
-  for (sc, ranges) in explicit do
-    byScript := byScript.insert sc (byScript.getD sc #[] ++ ranges)
-  byScript := byScript.map fun _ ranges => ScriptExtensions.normalize ranges
+  let extra := explicit.getD "Zzzz" #[]
+  byScript := byScript.insert "Zzzz" <| .mk fun _ =>
+    let assigned := Scripts.data.fold (init := listed) fun a _ ranges => a ++ ranges
+    ScriptExtensions.normalize <|
+      ScriptExtensions.subtract #[(0, 0x10FFFF)] (ScriptExtensions.normalize assigned) ++ extra
   return ⟨byScript, byCode⟩
 
 /-- Get the ranges of all code points whose Script Extensions value contains the given
@@ -104,7 +108,7 @@ script. The script may be given by its short or long name. -/
 public def ScriptExtensions.getTable (sc : String.Slice) : Array (UInt32 × UInt32) :=
   match PropertyValueAliases.getShortName? "Script" sc with
   | none => #[]
-  | some sc => data.byScript.get? sc |>.getD #[]
+  | some sc => data.byScript.get? sc |>.map Thunk.get |>.getD #[]
 
 /-- Binary search for the last entry with lower bound at most `code` -/
 private def ScriptExtensions.find (code : UInt32) : Nat :=

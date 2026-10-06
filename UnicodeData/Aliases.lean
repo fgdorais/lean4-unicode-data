@@ -15,7 +15,7 @@ public structure Aliases where
   nameMap : Std.HashMap String.Slice String.Slice
 deriving Inhabited
 
-/-- Raw string form `PropertyAliases.txt` -/
+/-- Raw string from `PropertyAliases.txt` -/
 protected def PropertyAliases.txt := include_str "../data/ucd/PropertyAliases.txt"
 
 initialize PropertyAliases.data : Aliases ← do

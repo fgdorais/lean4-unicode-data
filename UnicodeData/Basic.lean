@@ -76,7 +76,7 @@ def UnicodeData.mkPrivateUse (c : UInt32) : UnicodeData where
   bidi := .L
   gc := .Co
 
-/-- Make `UnicodeData` for CJK compatibilty ideograph code point -/
+/-- Make `UnicodeData` for CJK compatibility ideograph code point -/
 def UnicodeData.mkCJKCompatibilityIdeograph (c : UInt32) : UnicodeData where
   code := c
   name := s!"CJK COMPATIBILITY IDEOGRAPH-{toHexStringRaw c}"

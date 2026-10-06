@@ -16,7 +16,7 @@
    "subDir": null,
    "scope": "",
    "rev": "b71aaf60877e673fdb921f06f20987d12ee8a290",
-   "name": "Batteries",
+   "name": "batteries",
    "manifestFile": "lake-manifest.json",
    "inputRev": "main",
    "inherited": false,

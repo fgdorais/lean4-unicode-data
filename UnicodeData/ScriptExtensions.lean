@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
 public import UnicodeData.Scripts
+import Batteries.Data.Nat.Bisect
 import UnicodeBasic.Types
 import UnicodeBasic.CharacterDatabase
 
@@ -105,46 +106,34 @@ public def ScriptExtensions.getTable (sc : String.Slice) : Array (UInt32 × UInt
   | none => #[]
   | some sc => data.byScript.get? sc |>.getD #[]
 
-/-- Find the last range whose lower bound is at most `code`. -/
-private partial def ScriptExtensions.find
-    (code : UInt32) (lo hi : Nat) : Nat :=
-  assert! (hi ≤ data.byCode.size)
-  assert! (lo < hi)
-  assert! (data.byCode[lo]!.1 ≤ code)
-  let mid := (lo + hi) / 2
-  if lo = mid then
-    mid
-  else if code < data.byCode[mid]!.1 then
-    find code lo mid
+/-- Binary search for the last entry with lower bound at most `code` -/
+private def ScriptExtensions.find (code : UInt32) : Nat :=
+  let p i := decide (i < data.byCode.size) && data.byCode[i]!.1 ≤ code
+  if h : 0 < data.byCode.size ∧ data.byCode[0]!.1 ≤ code then
+    Nat.bisect (p := p) h.1 (by simp only [p, h.1, h.2, decide_true, Bool.and_self]) (by simp [p])
   else
-    find code mid hi
+    panic! "invalid binary search start"
 
 /-- Get the explicit short Script Extensions values for a code point. -/
 public def ScriptExtensions.getExplicit? (code : UInt32) : Option (Array String.Slice) :=
   if data.byCode.isEmpty || code < data.byCode[0]!.1 then none else
-    match data.byCode[find code 0 data.byCode.size]! with
+    match data.byCode[find code]! with
     | (_, top, scripts) => if code ≤ top then some scripts else none
 
-/-- Find the last range whose lower bound is at most `code`. -/
-private partial def ScriptExtensions.findRange
-    (code : UInt32) (ranges : Array (UInt32 × UInt32)) (lo hi : Nat) : Nat :=
-  assert! (hi ≤ ranges.size)
-  assert! (lo < hi)
-  assert! (ranges[lo]!.1 ≤ code)
-  let mid := (lo + hi) / 2
-  if lo = mid then
-    mid
-  else if code < ranges[mid]!.1 then
-    findRange code ranges lo mid
+/-- Binary search for the last entry with lower bound at most `code` -/
+private def ScriptExtensions.findRange (code : UInt32) (ranges : Array (UInt32 × UInt32)) : Nat :=
+  let p i := decide (i < ranges.size) && ranges[i]!.1 ≤ code
+  if h : 0 < ranges.size ∧ ranges[0]!.1 ≤ code then
+    Nat.bisect (p := p) h.1 (by simp only [p, h.1, h.2, decide_true, Bool.and_self]) (by simp [p])
   else
-    findRange code ranges mid hi
+    panic! "invalid binary search start"
 
 /-- Check whether the Script Extensions value of a code point contains the given script.
 The script may be given by its short or long name. -/
 public def ScriptExtensions.contains (sc : String.Slice) (code : UInt32) : Bool :=
   let ranges := getTable sc
   if ranges.isEmpty || code < ranges[0]!.1 then false else
-    let (_, top) := ranges[findRange code ranges 0 ranges.size]!
+    let (_, top) := ranges[findRange code ranges]!
     code ≤ top
 
 /-- Get the short Script Extensions values for a code point. -/

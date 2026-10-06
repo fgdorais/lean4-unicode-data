@@ -6,7 +6,7 @@ keywords = ["unicode"]
 defaultTargets = ["UnicodeData"]
 
 [[require]]
-name = "Batteries"
+name = "batteries"
 git = "https://github.com/leanprover-community/batteries"
 rev = "nightly-testing"
 

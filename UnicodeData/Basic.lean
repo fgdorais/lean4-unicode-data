@@ -76,7 +76,7 @@ def UnicodeData.mkPrivateUse (c : UInt32) : UnicodeData where
   bidi := .L
   gc := .Co
 
-/-- Make `UnicodeData` for CJK compatibilty ideograph code point -/
+/-- Make `UnicodeData` for CJK compatibility ideograph code point -/
 def UnicodeData.mkCJKCompatibilityIdeograph (c : UInt32) : UnicodeData where
   code := c
   name := s!"CJK COMPATIBILITY IDEOGRAPH-{toHexStringRaw c}"
@@ -108,6 +108,20 @@ def UnicodeData.mkHangulSyllable (c : UInt32) : UnicodeData :=
 def UnicodeData.mkTangutIdeograph (c : UInt32) : UnicodeData where
   code := c
   name := s!"TANGUT IDEOGRAPH-{toHexStringRaw c}"
+  bidi := .L
+  gc := .Lo
+
+/-- Make `UnicodeData` for Jurchen character code point -/
+def UnicodeData.mkJurchenCharacter (c : UInt32) : UnicodeData where
+  code := c
+  name := s!"JURCHEN CHARACTER-{toHexStringRaw c}"
+  bidi := .L
+  gc := .Lo
+
+/-- Make `UnicodeData` for small seal character code point -/
+def UnicodeData.mkSmallSealCharacter (c : UInt32) : UnicodeData where
+  code := c
+  name := s!"SMALL SEAL CHARACTER-{toHexStringRaw c}"
   bidi := .L
   gc := .Lo
 
@@ -281,6 +295,10 @@ public partial def getUnicodeData? (code : UInt32) : Option UnicodeData := do
           UnicodeData.mkCJKUnifiedIdeograph code
         else if data.name.take 17 == "<Tangut Ideograph" then
           UnicodeData.mkTangutIdeograph code
+        else if data.name.take 18 == "<Jurchen Character" then
+          UnicodeData.mkJurchenCharacter code
+        else if data.name.take 15 == "<Seal Character" then
+          UnicodeData.mkSmallSealCharacter code
         else if data.gc == .Cc then
           UnicodeData.mkControl code
         else if data.gc == .Co then
@@ -358,6 +376,10 @@ public def UnicodeDataStream.next? (s : UnicodeDataStream) : Option (UnicodeData
           default := UnicodeData.mkHangulSyllable
         else if n.take 17 == "<Tangut Ideograph" then
           default := UnicodeData.mkTangutIdeograph
+        else if n.take 18 == "<Jurchen Character" then
+          default := UnicodeData.mkJurchenCharacter
+        else if n.take 15 == "<Seal Character" then
+          default := UnicodeData.mkSmallSealCharacter
         else
           panic! "invalid Unicode data"
         return (default c, {s with code := c+1, index := i+1, default})

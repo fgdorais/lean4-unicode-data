@@ -3,6 +3,7 @@ Copyright © 2023-2025 François G. Dorais. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
 module
+import Batteries.Data.Nat.Bisect
 import UnicodeBasic.CharacterDatabase
 import UnicodeBasic.Hangul
 public import UnicodeBasic.Types
@@ -249,7 +250,7 @@ public unsafe initialize UnicodeData.data : Array UnicodeData ←
   return arr
 
 /-- Get code point data from `UnicodeData.txt` -/
-public partial def getUnicodeData? (code : UInt32) : Option UnicodeData := do
+public def getUnicodeData? (code : UInt32) : Option UnicodeData := do
   if code > Unicode.max then
     none
   else if code ≤ 0x0377 then
@@ -268,7 +269,7 @@ public partial def getUnicodeData? (code : UInt32) : Option UnicodeData := do
     else
       return data
   else
-    let data := UnicodeData.data[find 0x0377 UnicodeData.data.size]!
+    let data := UnicodeData.data[find 0x0377]!
     /-
       For backward compatibility, ranges in the file `UnicodeData.txt` are
       specified by entries for the start and end characters of the range,
@@ -316,20 +317,13 @@ public partial def getUnicodeData? (code : UInt32) : Option UnicodeData := do
 
 where
 
-  -- TODO: stop reinventing the wheel!
-  /-- Binary search -/
-  find (lo hi : Nat) : Nat :=
-    assert! (hi ≤ UnicodeData.data.size)
-    assert! (lo < hi)
-    assert! (UnicodeData.data[lo]!.code ≤ code)
-    let mid := (lo + hi) / 2 -- NB: mid < hi because lo < hi
-    if lo = mid then
-      mid
+  /-- Binary search for the last entry starting at index `lo` with code at most `code` -/
+  find (lo : Nat) : Nat :=
+    let p i := decide (i < UnicodeData.data.size) && UnicodeData.data[i]!.code ≤ code
+    if h : lo < UnicodeData.data.size ∧ UnicodeData.data[lo]!.code ≤ code then
+      Nat.bisect (p := p) h.1 (by simp only [p, h.1, h.2, decide_true, Bool.and_self]) (by simp [p])
     else
-      if code < UnicodeData.data[mid]!.code then
-        find lo mid
-      else
-        find mid hi
+      panic! "invalid binary search start"
 
 @[inherit_doc getUnicodeData?]
 public def getUnicodeData! (code : UInt32) :=

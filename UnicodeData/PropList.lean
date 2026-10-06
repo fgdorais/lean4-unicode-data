@@ -32,7 +32,7 @@ public structure PropList where
   deprecated : Array (UInt32 × Option UInt32) := #[]
 deriving Inhabited, Repr
 
-/-- Raw string form `PropList.txt` -/
+/-- Raw string from `PropList.txt` -/
 protected def PropList.txt := include_str "../data/ucd/PropList.txt"
 
 public unsafe initialize PropList.data : PropList ←

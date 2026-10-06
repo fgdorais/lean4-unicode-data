@@ -8,7 +8,7 @@ import UnicodeBasic.CharacterDatabase
 
 namespace Unicode.CaseFolding
 
-/-- Raw string form `CaseFolding.txt` -/
+/-- Raw string from `CaseFolding.txt` -/
 protected def txt := include_str "../data/ucd/CaseFolding.txt"
 
 public initialize data : Array (UInt32 × Option UInt32 × Array UInt32) ← do

@@ -8,4 +8,5 @@ public import UnicodeData.Aliases
 public import UnicodeData.Basic
 public import UnicodeData.CaseFolding
 public import UnicodeData.PropList
+public import UnicodeData.ScriptExtensions
 public import UnicodeData.Scripts

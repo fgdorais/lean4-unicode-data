@@ -44,15 +44,19 @@ public instance : Inhabited UnicodeData where
     gc := .Cc
   }
 
-/-- Make `UnicodeData` for noncharacter code point -/
+/-- Make `UnicodeData` for a code point not listed in `UnicodeData.txt`
+
+  Such a code point is either a noncharacter or reserved (unassigned). Its name is the
+  corresponding code point label, `<noncharacter-NNNN>` or `<reserved-NNNN>`, as specified in
+  UAX #44, Section 4.2.5. -/
 public def UnicodeData.mkNoncharacter (code : UInt32) : UnicodeData where
   code := code
   name :=
     -- Extracted from property `Noncharacter_Code_Point`
-    let isReserved := (code &&& 0xFFFFFFF0 == 0x0000FDD0) ||
-                      (code &&& 0xFFFFFFF0 == 0x0000FDE0) ||
-                      (code &&& 0x0000FFFE == 0x0000FFFE)
-    (if isReserved then "<reserved-" else "<noncharacter-") ++ toHexStringRaw code ++ ">"
+    let isNoncharacter := (code &&& 0xFFFFFFF0 == 0x0000FDD0) ||
+                          (code &&& 0xFFFFFFF0 == 0x0000FDE0) ||
+                          (code &&& 0x0000FFFE == 0x0000FFFE)
+    (if isNoncharacter then "<noncharacter-" else "<reserved-") ++ toHexStringRaw code ++ ">"
   bidi := .BN
   gc := .Cn
 

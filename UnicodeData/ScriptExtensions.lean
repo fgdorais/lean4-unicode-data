@@ -114,40 +114,32 @@ the `Script` property alone. -/
 public def ScriptExtensions.getTable (sc : Script) : Array (UInt32 × UInt32) :=
   data.byScript.get? sc |>.map Thunk.get |>.getD #[]
 
-/-- Binary search for the last entry with lower bound at most `code` -/
-private def ScriptExtensions.find (code : UInt32) : Nat :=
-  let p i := decide (i < data.byCode.size) && data.byCode[i]!.1 ≤ code
-  if h : 0 < data.byCode.size ∧ data.byCode[0]!.1 ≤ code then
-    Nat.bisect (p := p) h.1 (by simp only [p, h.1, h.2, decide_true, Bool.and_self]) (by simp [p])
-  else
-    panic! "invalid binary search start"
-
 /-- Get the `Script_Extensions` values listed for a code point in
 `ScriptExtensions.txt`, or `none` if it is not listed.
 
 Uses only `ScriptExtensions.txt`, not the `Script` property; see `ScriptExtensions.get`
 for the complete value. -/
 public def ScriptExtensions.getExplicit? (code : UInt32) : Option (Array Script) :=
-  if data.byCode.isEmpty || code < data.byCode[0]!.1 then none else
-    match data.byCode[find code]! with
-    | (_, top, scripts) => if code ≤ top then some scripts else none
-
-/-- Binary search for the last entry with lower bound at most `code` -/
-private def ScriptExtensions.findRange (code : UInt32) (ranges : Array (UInt32 × UInt32)) : Nat :=
-  let p i := decide (i < ranges.size) && ranges[i]!.1 ≤ code
-  if h : 0 < ranges.size ∧ ranges[0]!.1 ≤ code then
-    Nat.bisect (p := p) h.1 (by simp only [p, h.1, h.2, decide_true, Bool.and_self]) (by simp [p])
-  else
-    panic! "invalid binary search start"
+  let p i := decide (i < data.byCode.size) && data.byCode[i]!.1 ≤ code
+  if h : 0 < data.byCode.size ∧ data.byCode[0]!.1 ≤ code then
+    let i := Nat.bisect (p := p) h.1
+      (by simp only [p, h.1, h.2, decide_true, Bool.and_self]) (by simp [p])
+    let (_, top, scripts) := data.byCode[i]!
+    if code ≤ top then some scripts else none
+  else none
 
 /-- Check whether the `Script_Extensions` value of a code point contains the given script.
 
 Uses both `ScriptExtensions.txt` and the `Script` property. -/
 public def ScriptExtensions.contains (sc : Script) (code : UInt32) : Bool :=
   let ranges := getTable sc
-  if ranges.isEmpty || code < ranges[0]!.1 then false else
-    let (_, top) := ranges[findRange code ranges]!
+  let p i := decide (i < ranges.size) && ranges[i]!.1 ≤ code
+  if h : 0 < ranges.size ∧ ranges[0]!.1 ≤ code then
+    let i := Nat.bisect (p := p) h.1
+      (by simp only [p, h.1, h.2, decide_true, Bool.and_self]) (by simp [p])
+    let (_, top) := ranges[i]!
     code ≤ top
+  else false
 
 /-- Get the `Script_Extensions` values for a code point.
 

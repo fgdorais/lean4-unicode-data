@@ -57,21 +57,17 @@ initialize Scripts.codeData : Array (UInt32 × UInt32 × Script) ← do
       data := data.push (c₀, c₁, sc)
   return data.qsort fun a b => a.1 < b.1
 
-/-- Binary search for the last entry with lower bound at most `code` -/
-private def Scripts.find (code : UInt32) : Nat :=
-  let p i := decide (i < codeData.size) && codeData[i]!.1 ≤ code
-  if h : 0 < codeData.size ∧ codeData[0]!.1 ≤ code then
-    Nat.bisect (p := p) h.1 (by simp only [p, h.1, h.2, decide_true, Bool.and_self]) (by simp [p])
-  else
-    panic! "invalid binary search start"
-
 /-- Get the `Script` property value for a code point, `Zzzz` (`Unknown`) if unassigned.
 
 Uses only the `Script` property; see `ScriptExtensions.get` for `Script_Extensions`. -/
 public def Scripts.get (code : UInt32) : Script :=
-  if codeData.isEmpty || code < codeData[0]!.1 then default else
-    match codeData[find code]! with
-    | (_, top, script) => if code ≤ top then script else default
+  let p i := decide (i < codeData.size) && codeData[i]!.1 ≤ code
+  if h : 0 < codeData.size ∧ codeData[0]!.1 ≤ code then
+    let i := Nat.bisect (p := p) h.1
+      (by simp only [p, h.1, h.2, decide_true, Bool.and_self]) (by simp [p])
+    let (_, top, script) := codeData[i]!
+    if code ≤ top then script else default
+  else default
 
 /-- Get the code point ranges whose `Script` property is the given script.
 

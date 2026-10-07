@@ -5,7 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 module
 public import UnicodeData.Aliases
 import Batteries.Data.Nat.Bisect
-import UnicodeBasic.Types
+public import UnicodeBasic.Types
 import UnicodeBasic.CharacterDatabase
 
 namespace Unicode
@@ -39,12 +39,22 @@ public initialize Scripts.data : Scripts ← do
       t := t.insert record[1]! #[(c₀, c₁)]
   return t
 
+/-- Get the script with the given four-letter short name.
+
+Unlike `Script.ofAbbrev!`, this does not call into the UnicodeBasic C library, so it can
+be used in initializers that also run in the interpreter. -/
+public def Scripts.ofShortName! (name : String.Slice) : Script :=
+  let code := name.bytes.fold (init := 0) fun (c : UInt32) b => (c <<< 8) ||| b.toUInt32
+  if h : name.utf8ByteSize = 4 ∧ Script.isValid code then ⟨code, h.2⟩ else
+    panic! s!"invalid script name {name}"
+
 /-- `Script` property ranges indexed by code point. -/
-initialize Scripts.codeData : Array (UInt32 × UInt32 × String.Slice) ← do
+initialize Scripts.codeData : Array (UInt32 × UInt32 × Script) ← do
   let mut data := #[]
   for (script, ranges) in Scripts.data do
+    let sc := Scripts.ofShortName! <| PropertyValueAliases.getShortName! "Script" script
     for (c₀, c₁) in ranges do
-      data := data.push (c₀, c₁, script)
+      data := data.push (c₀, c₁, sc)
   return data.qsort fun a b => a.1 < b.1
 
 /-- Binary search for the last entry with lower bound at most `code` -/
@@ -55,13 +65,13 @@ private def Scripts.find (code : UInt32) : Nat :=
   else
     panic! "invalid binary search start"
 
-/-- Get the long `Script` property value for a code point.
+/-- Get the `Script` property value for a code point, `Zzzz` (`Unknown`) if unassigned.
 
 Uses only the `Script` property; see `ScriptExtensions.get` for `Script_Extensions`. -/
-public def Scripts.getScript? (code : UInt32) : Option String.Slice :=
-  if codeData.isEmpty || code < codeData[0]!.1 then none else
+public def Scripts.get (code : UInt32) : Script :=
+  if codeData.isEmpty || code < codeData[0]!.1 then default else
     match codeData[find code]! with
-    | (_, top, script) => if code ≤ top then some script else none
+    | (_, top, script) => if code ≤ top then script else default
 
 /-- Get the code point ranges whose `Script` property is the given script.
 

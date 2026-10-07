@@ -79,7 +79,7 @@ public initialize ScriptExtensions.data : ScriptExtensions ← do
       | [c] => (ofHexString! c, ofHexString! c)
       | [c₀, c₁] => (ofHexString! c₀, ofHexString! c₁)
       | _ => panic! "invalid record in ScriptExtensions.txt"
-    let scripts := record[1]!.split " " |>.toArray |>.map Scripts.ofShortName!
+    let scripts := record[1]!.split " " |>.toArray |>.map Script.ofAbbrev!
     byCode := byCode.push (c₀, c₁, scripts)
     for script in scripts do
       explicit := explicit.insert script <| (explicit.getD script #[]).push (c₀, c₁)
@@ -89,7 +89,7 @@ public initialize ScriptExtensions.data : ScriptExtensions ← do
   -- their `Script` value.
   let mut byScript : Std.HashMap Script (Thunk (Array (UInt32 × UInt32))) := {}
   for (script, ranges) in Scripts.data do
-    let sc := Scripts.ofShortName! <| PropertyValueAliases.getShortName! "Script" script
+    let sc := Script.ofAbbrev! <| PropertyValueAliases.getShortName! "Script" script
     let extra := explicit.getD sc #[]
     byScript := byScript.insert sc <| .mk fun _ =>
       ScriptExtensions.normalize <|

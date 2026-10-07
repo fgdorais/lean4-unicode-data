@@ -39,20 +39,11 @@ public initialize Scripts.data : Scripts ← do
       t := t.insert record[1]! #[(c₀, c₁)]
   return t
 
-/-- Get the script with the given four-letter short name.
-
-Unlike `Script.ofAbbrev!`, this does not call into the UnicodeBasic C library, so it can
-be used in initializers that also run in the interpreter. -/
-public def Scripts.ofShortName! (name : String.Slice) : Script :=
-  let code := name.bytes.fold (init := 0) fun (c : UInt32) b => (c <<< 8) ||| b.toUInt32
-  if h : name.utf8ByteSize = 4 ∧ Script.isValid code then ⟨code, h.2⟩ else
-    panic! s!"invalid script name {name}"
-
 /-- `Script` property ranges indexed by code point. -/
 initialize Scripts.codeData : Array (UInt32 × UInt32 × Script) ← do
   let mut data := #[]
   for (script, ranges) in Scripts.data do
-    let sc := Scripts.ofShortName! <| PropertyValueAliases.getShortName! "Script" script
+    let sc := Script.ofAbbrev! <| PropertyValueAliases.getShortName! "Script" script
     for (c₀, c₁) in ranges do
       data := data.push (c₀, c₁, sc)
   return data.qsort fun a b => a.1 < b.1

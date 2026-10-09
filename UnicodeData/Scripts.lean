@@ -19,7 +19,7 @@ public abbrev Scripts := Std.HashMap String.Slice (Array (UInt32 × UInt32))
 def Scripts.txt := include_str "../data/ucd/Scripts.txt"
 
 /-- Code point ranges for each script, using only the `Script` property. -/
-public initialize Scripts.data : Scripts ← do
+public def Scripts.data : Thunk Scripts := .mk fun _ => Id.run do
   let stream := UCDStream.ofString Scripts.txt
   let mut t := {}
   for record in stream do
@@ -40,9 +40,9 @@ public initialize Scripts.data : Scripts ← do
   return t
 
 /-- `Script` property ranges indexed by code point. -/
-initialize Scripts.codeData : Array (UInt32 × UInt32 × Script) ← do
+def Scripts.codeData : Thunk (Array (UInt32 × UInt32 × Script)) := .mk fun _ => Id.run do
   let mut data := #[]
-  for (script, ranges) in Scripts.data do
+  for (script, ranges) in Scripts.data.get do
     let sc := Script.ofAbbrev! <| PropertyValueAliases.getShortName! "Script" script
     for (c₀, c₁) in ranges do
       data := data.push (c₀, c₁, sc)
@@ -52,6 +52,7 @@ initialize Scripts.codeData : Array (UInt32 × UInt32 × Script) ← do
 
 Uses only the `Script` property; see `ScriptExtensions.get` for `Script_Extensions`. -/
 public def Scripts.get (code : UInt32) : Script :=
+  let codeData := codeData.get
   let p i := decide (i < codeData.size) && codeData[i]!.1 ≤ code
   if h : 0 < codeData.size ∧ codeData[0]!.1 ≤ code then
     let i := Nat.bisect (p := p) h.1
@@ -66,7 +67,7 @@ Uses only the `Script` property; see `ScriptExtensions.getTable` for `Script_Ext
 @[inline]
 public def Scripts.getTable? (sc : String.Slice) : Option <| Array (UInt32 × UInt32) := do
   let sc ← PropertyValueAliases.getLongName! "Script" sc
-  data.get? sc
+  data.get.get? sc
 
 @[inline, inherit_doc Scripts.getTable?]
 public def Scripts.getTable! (sc : String.Slice) : Array (UInt32 × UInt32) :=

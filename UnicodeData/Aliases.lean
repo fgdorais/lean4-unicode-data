@@ -18,7 +18,7 @@ deriving Inhabited
 /-- Raw string from `PropertyAliases.txt` -/
 protected def PropertyAliases.txt := include_str "../data/ucd/PropertyAliases.txt"
 
-initialize PropertyAliases.data : Aliases ← do
+def PropertyAliases.data : Thunk Aliases := .mk fun _ => Id.run do
   let stream := UCDStream.ofString PropertyAliases.txt
   let mut al := ⟨{}, {}⟩
   for record in stream do
@@ -35,7 +35,7 @@ initialize PropertyAliases.data : Aliases ← do
 /-- Get the long name of a property -/
 @[inline]
 public def PropertyAliases.getLongName? (prop : String.Slice) : Option String.Slice := do
-  data.nameMap.get? prop
+  data.get.nameMap.get? prop
 
 @[inline, inherit_doc PropertyAliases.getLongName?]
 public def PropertyAliases.getLongName! (prop : String.Slice) : String.Slice :=
@@ -45,7 +45,7 @@ public def PropertyAliases.getLongName! (prop : String.Slice) : String.Slice :=
 @[inline]
 public def PropertyAliases.getAliases? (prop : String.Slice) : Option (Array String.Slice) := do
   let prop ← getLongName? prop
-  data.aliasMap.get? prop
+  data.get.aliasMap.get? prop
 
 @[inline, inherit_doc PropertyAliases.getAliases?]
 public def PropertyAliases.getAliases! (prop : String.Slice) : Array String.Slice :=
@@ -62,7 +62,7 @@ public def PropertyAliases.getShortName! (prop : String.Slice) : String.Slice :=
 
 protected def PropertyValueAliases.txt := include_str "../data/ucd/PropertyValueAliases.txt"
 
-initialize PropertyValueAliases.data : Std.HashMap String.Slice Aliases ← do
+def PropertyValueAliases.data : Thunk (Std.HashMap String.Slice Aliases) := .mk fun _ => Id.run do
   let stream := UCDStream.ofString PropertyValueAliases.txt
   let mut map := {}
   for record in stream do
@@ -84,7 +84,7 @@ initialize PropertyValueAliases.data : Std.HashMap String.Slice Aliases ← do
 @[inline]
 public def PropertyAliases.getValues? (prop : String.Slice) : Option (Array String.Slice) := do
   let prop ← PropertyAliases.getLongName? prop
-  let al ← PropertyValueAliases.data.get? prop
+  let al ← PropertyValueAliases.data.get.get? prop
   return al.aliasMap.keysArray
 
 @[inline, inherit_doc PropertyAliases.getValues?]
@@ -95,7 +95,7 @@ public def PropertyAliases.getValues! (prop : String.Slice) : Array String.Slice
 @[inline]
 public def PropertyValueAliases.getLongName? (prop val : String.Slice) : Option String.Slice := do
   let prop ← PropertyAliases.getLongName? prop
-  let al ← data.get? prop
+  let al ← data.get.get? prop
   al.nameMap.get? val
 
 @[inline, inherit_doc PropertyValueAliases.getLongName?]
@@ -107,7 +107,7 @@ public def PropertyValueAliases.getLongName! (prop val : String.Slice) : String.
 public def PropertyValueAliases.getAliases? (prop val : String.Slice) : Option (Array String.Slice) := do
   let prop ← PropertyAliases.getLongName? prop
   let val ← getLongName? prop val
-  let al ← data.get? prop
+  let al ← data.get.get? prop
   al.aliasMap.get? val
 
 @[inline, inherit_doc PropertyAliases.getAliases?]

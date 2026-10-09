@@ -69,7 +69,7 @@ private def ScriptExtensions.subtract (ranges : Array (UInt32 × UInt32))
 
 /-- `Script_Extensions` values indexed by both script and code point, using both
 `ScriptExtensions.txt` and the `Script` property. -/
-public initialize ScriptExtensions.data : ScriptExtensions ← do
+public def ScriptExtensions.data : Thunk ScriptExtensions := .mk fun _ => Id.run do
   let stream := UCDStream.ofString ScriptExtensions.txt
   let mut byCode : Array ScriptExtension := #[]
   let mut explicit : Std.HashMap Script (Array (UInt32 × UInt32)) := {}
@@ -88,7 +88,7 @@ public initialize ScriptExtensions.data : ScriptExtensions ← do
   -- Code points with an explicit value keep only that value; all others inherit
   -- their `Script` value.
   let mut byScript : Std.HashMap Script (Thunk (Array (UInt32 × UInt32))) := {}
-  for (script, ranges) in Scripts.data do
+  for (script, ranges) in Scripts.data.get do
     let sc := Script.ofAbbrev! <| PropertyValueAliases.getShortName! "Script" script
     let extra := explicit.getD sc #[]
     byScript := byScript.insert sc <| .mk fun _ =>
@@ -100,7 +100,7 @@ public initialize ScriptExtensions.data : ScriptExtensions ← do
   -- Code points without a `Script` value have the value `Unknown`.
   let extra := explicit.getD default #[]
   byScript := byScript.insert default <| .mk fun _ =>
-    let assigned := Scripts.data.fold (init := listed) fun a _ ranges => a ++ ranges
+    let assigned := Scripts.data.get.fold (init := listed) fun a _ ranges => a ++ ranges
     ScriptExtensions.normalize <|
       ScriptExtensions.subtract #[(0, 0x10FFFF)] (ScriptExtensions.normalize assigned) ++ extra
   return ⟨byScript, byCode⟩
@@ -112,7 +112,7 @@ Uses both `ScriptExtensions.txt` and the `Script` property; see `Scripts.getTabl
 the `Script` property alone. -/
 @[inline]
 public def ScriptExtensions.getTable (sc : Script) : Array (UInt32 × UInt32) :=
-  data.byScript.get? sc |>.map Thunk.get |>.getD #[]
+  data.get.byScript.get? sc |>.map Thunk.get |>.getD #[]
 
 /-- Get the `Script_Extensions` values listed for a code point in
 `ScriptExtensions.txt`, or `none` if it is not listed.
@@ -120,11 +120,12 @@ public def ScriptExtensions.getTable (sc : Script) : Array (UInt32 × UInt32) :=
 Uses only `ScriptExtensions.txt`, not the `Script` property; see `ScriptExtensions.get`
 for the complete value. -/
 public def ScriptExtensions.getExplicit? (code : UInt32) : Option (Array Script) :=
-  let p i := decide (i < data.byCode.size) && data.byCode[i]!.1 ≤ code
-  if h : 0 < data.byCode.size ∧ data.byCode[0]!.1 ≤ code then
+  let byCode := data.get.byCode
+  let p i := decide (i < byCode.size) && byCode[i]!.1 ≤ code
+  if h : 0 < byCode.size ∧ byCode[0]!.1 ≤ code then
     let i := Nat.bisect (p := p) h.1
       (by simp only [p, h.1, h.2, decide_true, Bool.and_self]) (by simp [p])
-    let (_, top, scripts) := data.byCode[i]!
+    let (_, top, scripts) := byCode[i]!
     if code ≤ top then some scripts else none
   else none
 

@@ -12,7 +12,8 @@ namespace Unicode.CaseFolding
 /-- Raw string from `CaseFolding.txt` -/
 protected def txt := include_str "../data/ucd/CaseFolding.txt"
 
-public initialize data : Array (UInt32 × Option UInt32 × Array UInt32) ← do
+/-- Parsed data from `CaseFolding.txt` -/
+public def data : Thunk (Array (UInt32 × Option UInt32 × Array UInt32)) := .mk fun _ => Id.run do
   let stream := UCDStream.ofString CaseFolding.txt
   let mut a := #[]
   for record in stream do
@@ -36,7 +37,7 @@ public initialize data : Array (UInt32 × Option UInt32 × Array UInt32) ← do
   return a
 
 /-- Binary search for the last entry with code at most `code` -/
-def find (code : UInt32) : Nat :=
+def find (data : Array (UInt32 × Option UInt32 × Array UInt32)) (code : UInt32) : Nat :=
   let p i := decide (i < data.size) && data[i]!.1 ≤ code
   if h : 0 < data.size ∧ data[0]!.1 ≤ code then
     Nat.bisect (p := p) h.1 (by simp only [p, h.1, h.2, decide_true, Bool.and_self]) (by simp [p])
@@ -45,14 +46,16 @@ def find (code : UInt32) : Nat :=
 
 /-- Get simple case folding -/
 public def getSimple? (code : UInt32) : Option UInt32 :=
+  let data := data.get
   if code < data[0]!.1 then none else
-    match data[find code]! with
+    match data[find data code]! with
     | (c, s, _) => if code == c then s else none
 
 /-- Get full case folding -/
 public def getFull (code : UInt32) : Array UInt32 :=
+  let data := data.get
   if code < data[0]!.1 then #[] else
-    match data[find code]! with
+    match data[find data code]! with
     | (c, s, f) =>
       if code == c then
         if f.isEmpty then #[s.getD c] else f

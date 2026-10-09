@@ -133,8 +133,7 @@ def UnicodeData.mkSmallSealCharacter (c : UInt32) : UnicodeData where
 /-- Raw string from file `UnicodeData.txt` -/
 protected def UnicodeData.txt := include_str "../data/ucd/UnicodeData.txt"
 
-/-- Parse `UnicodeData.txt` -/
-public unsafe initialize UnicodeData.data : Array UnicodeData ←
+unsafe def UnicodeData.dataImpl : Thunk (Array UnicodeData) := .mk fun _ => Id.run do
   let getDecompositionMapping? (s : String.Slice) : Option DecompositionMapping := do
     /-
       The value of the `Decomposition_Mapping` property for a character is
@@ -253,8 +252,13 @@ public unsafe initialize UnicodeData.data : Array UnicodeData ←
     }
   return arr
 
+/-- Parsed data from `UnicodeData.txt` -/
+@[implemented_by UnicodeData.dataImpl]
+public opaque UnicodeData.data : Thunk (Array UnicodeData)
+
 /-- Get code point data from `UnicodeData.txt` -/
 public def getUnicodeData? (code : UInt32) : Option UnicodeData := do
+  let table := UnicodeData.data.get
   if code > Unicode.max then
     none
   else if code ≤ 0x0377 then
@@ -265,7 +269,7 @@ public def getUnicodeData? (code : UInt32) : Option UnicodeData := do
       convenient because the smaller code points include ASCII and other
       common subsets.
     -/
-    let data := UnicodeData.data[code.toUSize]!
+    let data := table[code.toUSize]!
     assert! (data.code == code)
     if data.name == "<control>" then
       return {data with
@@ -273,7 +277,7 @@ public def getUnicodeData? (code : UInt32) : Option UnicodeData := do
     else
       return data
   else
-    let data := UnicodeData.data[find 0x0377]!
+    let data := table[find table 0x0377]!
     /-
       For backward compatibility, ranges in the file `UnicodeData.txt` are
       specified by entries for the start and end characters of the range,
@@ -322,9 +326,9 @@ public def getUnicodeData? (code : UInt32) : Option UnicodeData := do
 where
 
   /-- Binary search for the last entry starting at index `lo` with code at most `code` -/
-  find (lo : Nat) : Nat :=
-    let p i := decide (i < UnicodeData.data.size) && UnicodeData.data[i]!.code ≤ code
-    if h : lo < UnicodeData.data.size ∧ UnicodeData.data[lo]!.code ≤ code then
+  find (table : Array UnicodeData) (lo : Nat) : Nat :=
+    let p i := decide (i < table.size) && table[i]!.code ≤ code
+    if h : lo < table.size ∧ table[lo]!.code ≤ code then
       Nat.bisect (p := p) h.1 (by simp only [p, h.1, h.2, decide_true, Bool.and_self]) (by simp [p])
     else
       panic! "invalid binary search start"
@@ -353,8 +357,8 @@ public def UnicodeDataStream.next? (s : UnicodeDataStream) : Option (UnicodeData
   let i := s.index
   if c > Unicode.max then
     none
-  else if h : i.toNat < UnicodeData.data.size then
-    let d := UnicodeData.data[i]
+  else if h : i.toNat < UnicodeData.data.get.size then
+    let d := UnicodeData.data.get[i]
     let n := d.name
     if c < d.code then
       return (s.default c, {s with code := c+1})

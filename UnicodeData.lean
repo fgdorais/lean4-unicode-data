@@ -10,3 +10,4 @@ public import UnicodeData.CaseFolding
 public import UnicodeData.PropList
 public import UnicodeData.ScriptExtensions
 public import UnicodeData.Scripts
+public import UnicodeData.SpecialCasing

@@ -17,4 +17,5 @@ jobs:
         with:
           auto-config: false
           build: true
+          test: true
           build-args: "--wfail"

@@ -9,12 +9,15 @@ concurrency:
   group: update-main-toolchain
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   update-main-toolchain:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           fetch-depth: 0
@@ -68,7 +71,7 @@ jobs:
 
       - name: Install Lean
         if: steps.toolchain.outputs.updated == 'true'
-        uses: leanprover/lean-action@v1
+        uses: leanprover/lean-action@fe408643ea7367d8c0404a8be3975bb145f5fb64 # v1.7.0
         with:
           auto-config: false
           use-github-cache: false
@@ -79,7 +82,7 @@ jobs:
 
       - name: Create pull request
         if: steps.toolchain.outputs.updated == 'true'
-        uses: peter-evans/create-pull-request@v8
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ secrets.UNICODE_DATA_TOKEN }}
           commit-message: "chore: update toolchain to ${{ steps.toolchain.outputs.toolchain_rev }}"

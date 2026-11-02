@@ -225,9 +225,9 @@ unsafe def UnicodeData.dataImpl : Thunk (Array UnicodeData) := .mk fun _ => Id.r
         else
           match s₃.split "/" |>.toList with
           | [s] => -- integer value
-            return .numeric s.toInt! none -- TODO: don't use toString
+            return .numeric s.toInt! none
           | [sn,sd] => -- rational value
-            return .numeric sn.toInt! (some sd.toNat!) -- TODO: don't use toString
+            return .numeric sn.toInt! (some sd.toNat!)
           | _ => panic! "invalid numeric value"
       else
         return .digit <| getDigitUnsafe <| s₂.front

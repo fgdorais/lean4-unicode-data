@@ -3,9 +3,14 @@ precompileModules = true
 description = "Unicode Character Database support for Lean 4"
 keywords = ["unicode"]
 defaultTargets = ["UnicodeData"]
+testDriver = "UnicodeDataTest"
 
 [[lean_lib]]
 name = "UnicodeData"
+
+[[lean_lib]]
+name = "UnicodeDataTest"
+srcDir = "test"
 
 [[require]]
 name = "batteries"

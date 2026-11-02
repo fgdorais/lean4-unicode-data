@@ -9,12 +9,15 @@ concurrency:
   group: update-nightly-testing
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   update-nightly-testing:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout nightly-testing
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: nightly-testing
           token: ${{ secrets.UNICODE_DATA_TOKEN }}
@@ -55,7 +58,7 @@ jobs:
 
       - name: Install Lean
         if: steps.toolchain.outputs.updated == 'true'
-        uses: leanprover/lean-action@v1
+        uses: leanprover/lean-action@fe408643ea7367d8c0404a8be3975bb145f5fb64 # v1.7.0
         with:
           auto-config: false
           use-github-cache: false

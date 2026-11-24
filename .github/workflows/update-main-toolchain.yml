@@ -81,6 +81,7 @@ jobs:
         run: lake update --keep-toolchain
 
       - name: Create pull request
+        id: cpr
         if: steps.toolchain.outputs.updated == 'true'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
@@ -90,3 +91,18 @@ jobs:
           base: main
           delete-branch: true
           title: "chore: update toolchain to ${{ steps.toolchain.outputs.toolchain_rev }}"
+
+      - name: Merge pull request when checks pass
+        if: ${{ steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated' }}
+        timeout-minutes: 180
+        env:
+          GH_TOKEN: ${{ secrets.UNICODE_DATA_TOKEN }}
+          PR: ${{ steps.cpr.outputs.pull-request-number }}
+        run: |
+          # wait for the pull request's checks to start, then for them to pass
+          for i in $(seq 1 30); do
+            if [ "$(gh pr checks "$PR" --repo "$GITHUB_REPOSITORY" --json name --jq length 2>/dev/null || echo 0)" != "0" ]; then break; fi
+            sleep 20
+          done
+          gh pr checks "$PR" --repo "$GITHUB_REPOSITORY" --watch --fail-fast --interval 60
+          gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --squash --delete-branch

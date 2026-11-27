@@ -23,3 +23,4 @@ jobs:
           auto-config: false
           build: true
           build-args: "--wfail"
+          test: true
